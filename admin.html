@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plus+ 管理画面</title>
+<style>
+:root{--bg:#fff5f9;--card:#ffffff;--text:#5a2e42;--sub:#a15a78;--accent:#ff6f9f;--line:#ffd6e6;}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif;background:var(--bg);color:var(--text);}
+#lockScreen{position:fixed;inset:0;background:linear-gradient(160deg,#2a1420,#4a1f33);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;color:#fff;}
+#lockScreen h1{font-size:26px;letter-spacing:2px;margin-bottom:24px;font-weight:300;}
+#lockScreen input{font-size:24px;letter-spacing:8px;text-align:center;width:180px;padding:10px;border-radius:12px;border:none;margin-bottom:16px;}
+#lockScreen button{padding:10px 24px;border-radius:20px;border:none;background:var(--accent);color:#fff;font-size:16px;}
+#lockError{color:#ffb3c6;font-size:13px;height:18px;}
+#app{display:none;max-width:720px;margin:0 auto;padding:12px;}
+.tabs{display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;}
+.tab{flex:0 0 auto;padding:9px 12px;border-radius:20px;background:#fff;border:1px solid var(--line);font-size:13px;white-space:nowrap;cursor:pointer;color:var(--sub);}
+.tab.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.panel{display:none;}
+.panel.active{display:block;}
+.card{background:var(--card);border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.05);}
+select,input,textarea{width:100%;padding:8px;border-radius:8px;border:1px solid var(--line);font-size:14px;margin-bottom:8px;background:#fff;color:var(--text);}
+label{font-size:12px;color:var(--sub);display:block;margin-bottom:2px;}
+button{padding:9px 14px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-size:14px;cursor:pointer;}
+button.secondary{background:#eee;color:var(--text);}
+button.danger{background:#e05070;color:#fff;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th,td{padding:6px 4px;border-bottom:1px solid var(--line);text-align:left;}
+th{color:var(--sub);font-weight:normal;}
+.row{display:flex;gap:6px;align-items:center;}
+.row>*{flex:1;}
+.tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;}
+.tag.done{background:#d4f5e0;color:#1a7a45;}
+.tag.pending{background:#ffe4cc;color:#a5561a;}
+.tag.zaiseki{background:#dbe9ff;color:#1d4f9c;}
+.tag.shinjin{background:#ffe0ef;color:#b0296b;}
+.section-title{font-size:15px;font-weight:bold;margin:0 0 10px;}
+.small{font-size:11px;color:var(--sub);}
+#confirmOverlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:900;}
+#helpBtn{position:fixed;top:14px;right:14px;width:32px;height:32px;border-radius:50%;background:var(--accent);color:#fff;border:none;font-size:16px;z-index:400;box-shadow:0 2px 8px rgba(0,0,0,.2);}
+#helpOverlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:950;padding:20px;}
+#helpModal{background:#fff;border-radius:16px;padding:20px;width:100%;max-width:400px;max-height:80vh;overflow-y:auto;}
+#helpModal h2{font-size:17px;margin:0 0 10px;}
+#helpModal h3{font-size:14px;margin:14px 0 4px;color:var(--accent);}
+#helpModal p,#helpModal li{font-size:13px;line-height:1.6;}
+#helpModal ul{margin:0 0 6px;padding-left:20px;}
+#helpModal button{margin-top:14px;width:100%;padding:10px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-size:15px;}
+#progressOverlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:960;padding:20px;}
+#progressModal{background:#fff;border-radius:16px;padding:20px;width:92vw;max-width:480px;text-align:center;box-sizing:border-box;}
+#progressModal h2{font-size:16px;margin:0 0 4px;}
+#progressModal .pSub{font-size:12px;color:var(--sub);margin-bottom:12px;}
+.pGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:14px;}
+.pCell{aspect-ratio:1;border-radius:8px;border:2px solid var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:9px;white-space:pre-line;padding:3px;text-align:center;overflow:hidden;min-width:0;}
+.pCell.done{background:var(--accent);color:#fff;border-color:var(--accent);}
+.pCell.pending{background:#fff3e0;border-color:#ffb74d;color:#a5561a;border-style:dashed;cursor:pointer;}
+.pCell .pBtn{display:block;margin-top:3px;font-size:7.5px;line-height:1.2;background:#ff9f43;color:#fff;border-radius:6px;padding:2px 3px;max-width:100%;}
+#progressModal button{width:100%;padding:10px;border-radius:10px;border:none;background:#eee;font-size:14px;}
+#confirmModal{background:#fff;border-radius:16px;padding:20px;width:85%;max-width:340px;text-align:center;}
+#confirmModal p{margin:0 0 16px;white-space:pre-line;font-size:14px;}
+#confirmModal .btns{display:flex;gap:10px;}
+#confirmModal button{flex:1;padding:10px;border-radius:10px;border:none;font-size:15px;}
+#confirmModal .yes{background:var(--accent);color:#fff;}
+#confirmModal .no{background:#eee;}
+.printBtn{background:#fff;color:var(--accent);border:1px solid var(--accent);margin-bottom:10px;}
+#masterBar{display:flex;align-items:center;gap:8px;background:#fff;border-radius:12px;padding:8px 12px;margin-bottom:10px;font-size:13px;}
+#masterBar.on{background:#2a1420;color:#fff;}
+#masterBar button{padding:6px 10px;font-size:12px;}
+.catTabs{display:flex;gap:6px;margin-bottom:10px;}
+.catTab{padding:7px 12px;border-radius:16px;border:1px solid var(--line);background:#fff;font-size:13px;cursor:pointer;color:var(--sub);}
+.catTab.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+@media print{
+  .tabs,.no-print,#lockScreen,#helpBtn,#helpOverlay,#progressOverlay,#confirmOverlay{display:none !important;}
+  #app{max-width:100%;padding:0;}
+  .card{box-shadow:none;border:1px solid #ccc;}
+  table{font-size:12px;}
+}
+</style>
+</head>
+<body>
+
+<div id="lockScreen">
+  <h1>Plus+ 管理画面</h1>
+  <input type="password" id="entryInput" inputmode="numeric" maxlength="8" placeholder="パスコード">
+  <div id="lockError"></div>
+  <button onclick="tryEntry()">開く</button>
+</div>
+
+<div id="app">
+  <div id="masterBar" class="no-print">
+    <span id="masterBarText">🔐 マスター管理者モード：OFF</span>
+    <button class="secondary" onclick="toggleMasterMode()" id="masterBarBtn">オンにする</button>
+  </div>
+  <div class="tabs">
+    <div class="tab active" data-tab="status">達成状況</div>
+    <div class="tab" data-tab="master">コンパニオン管理</div>
+    <div class="tab" data-tab="payout">支給履歴</div>
+    <div class="tab" data-tab="bingo">ビンゴ内容編集</div>
+  </div>
+
+  <div class="panel active" id="panel-status">
+    <div class="card">
+      <div class="section-title">達成状況(統括データ)</div>
+      <div class="small">※ビンゴカード登録者のみ表示</div>
+      <div class="no-print">
+        <label>店舗で絞り込み</label>
+        <select id="statusStoreFilter">
+          <option value="">全店舗</option>
+        </select>
+      </div>
+      <button class="printBtn no-print" onclick="window.print()">🖨 この一覧を印刷</button>
+      <div style="overflow-x:auto;">
+        <table id="statusTable">
+          <thead><tr><th>店舗</th><th>名前</th><th>月</th><th>達成ライン</th><th>ボーナス目安</th><th>ボーナス確定</th><th class="no-print"></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-master">
+    <div class="card">
+      <div class="section-title">コンパニオン登録</div>
+      <div class="row">
+        <select id="mStore"></select>
+        <input type="text" id="mName" placeholder="名前">
+      </div>
+      <select id="mCategory">
+        <option value="在籍女性">在籍女性</option>
+        <option value="新人女性">新人女性</option>
+      </select>
+      <button onclick="addCompanion()">＋ 追加</button>
+      <div class="small">※コンパニオン名はひらがな登録</div>
+    </div>
+    <div class="card">
+      <div class="section-title">登録一覧</div>
+      <div class="no-print">
+        <select id="mListStoreFilter"></select>
+        <input type="text" id="mSearchInput" placeholder="名前で検索">
+        <div class="catTabs" id="kanaTabs" style="flex-wrap:wrap;">
+          <div class="catTab active" data-kana="" onclick="setKanaFilter('')">すべて</div>
+          <div class="catTab" data-kana="あ" onclick="setKanaFilter('あ')">あ</div>
+          <div class="catTab" data-kana="か" onclick="setKanaFilter('か')">か</div>
+          <div class="catTab" data-kana="さ" onclick="setKanaFilter('さ')">さ</div>
+          <div class="catTab" data-kana="た" onclick="setKanaFilter('た')">た</div>
+          <div class="catTab" data-kana="な" onclick="setKanaFilter('な')">な</div>
+          <div class="catTab" data-kana="は" onclick="setKanaFilter('は')">は</div>
+          <div class="catTab" data-kana="ま" onclick="setKanaFilter('ま')">ま</div>
+          <div class="catTab" data-kana="や" onclick="setKanaFilter('や')">や</div>
+          <div class="catTab" data-kana="ら" onclick="setKanaFilter('ら')">ら</div>
+          <div class="catTab" data-kana="わ" onclick="setKanaFilter('わ')">わ</div>
+        </div>
+        <div class="catTabs">
+          <div class="catTab active" data-newonly="0" onclick="setNewOnlyFilter(false)">全員</div>
+          <div class="catTab" data-newonly="1" onclick="setNewOnlyFilter(true)">新人のみ</div>
+        </div>
+      </div>
+      <div class="small" id="masterCount" style="font-size:13px;font-weight:bold;color:var(--text);margin:6px 0;"></div>
+      <button class="printBtn no-print" onclick="window.print()">🖨 この一覧を印刷(店舗で絞り込んでから押してください)</button>
+      <div style="overflow-x:auto;">
+        <table id="masterTable">
+          <thead><tr><th>店舗</th><th>名前</th><th>区分</th><th>状態</th><th>今月のビンゴ</th><th class="no-print"></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-payout">
+    <div class="card no-print">
+      <div class="section-title">支給履歴の入力</div>
+      <select id="pStore"></select>
+      <label>対象月</label>
+      <input type="month" id="pMonth">
+      <select id="pName"><option value="">-- 名前を選択(ボーナス確定者のみ) --</option></select>
+      <div class="small" id="pNameHint"></div>
+      <input type="number" id="pAmount" placeholder="支給額(自動入力・通常は変更不可)" readonly>
+      <label>支払日</label>
+      <input type="date" id="pDate">
+      <input type="text" id="pStaff" placeholder="支給担当スタッフ">
+      <div class="small">※登録後は金額・支払日・担当者の編集はできません(記録を守るためのロック)。入力内容を確認してから登録してください。</div>
+      <button onclick="addPayout()">＋ 登録(未支給として追加)</button>
+    </div>
+    <div class="card">
+      <div class="section-title">履歴一覧</div>
+      <button class="printBtn no-print" onclick="window.print()">🖨 この一覧を印刷</button>
+      <div style="overflow-x:auto;">
+        <table id="payoutTable">
+          <thead><tr><th>店舗</th><th>名前</th><th>月</th><th>金額</th><th>支払日</th><th>状態</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-bingo">
+    <div class="card">
+      <div class="section-title">ビンゴ内容編集(16マス)</div>
+      <div class="small">在籍女性用・新人女性用でそれぞれ別の内容を設定できます。改行はそのまま反映されます。</div>
+      <div class="catTabs">
+        <div class="catTab active" data-cat="在籍女性" onclick="switchBingoCat('在籍女性')">在籍女性用</div>
+        <div class="catTab" data-cat="新人女性" onclick="switchBingoCat('新人女性')">新人女性用</div>
+      </div>
+      <div id="bingoEditGrid"></div>
+      <button onclick="saveBingoConfig()">保存する</button>
+      <div class="small" id="bingoSaveMsg"></div>
+    </div>
+  </div>
+</div>
+
+<button id="helpBtn" onclick="document.getElementById('helpOverlay').style.display='flex'">？</button>
+<div id="helpOverlay">
+  <div id="helpModal">
+    <h2>管理画面の使い方</h2>
+    <h3>達成状況</h3>
+    <ul><li>店舗ごとの達成ライン数・ボーナス目安を一覧で確認できます</li></ul>
+    <h3>コンパニオン管理</h3>
+    <ul>
+      <li>店舗・名前(ひらがな)・区分を入力して登録</li>
+      <li>名前検索・あ〜わ行・新人のみで絞り込み可能</li>
+      <li>「区分編集」ボタンで在籍女性⇔新人女性をいつでも切り替え可能</li>
+      <li>「進行状況」ボタンから、本人がチェックしていない項目でも「追加・確定」でスタッフが直接記録・確定できます(担当者名の入力が必要です)</li>
+    </ul>
+    <h3>支給履歴</h3>
+    <ul><li>登録後は金額・支払日・担当者を編集できません(記録を守るロック)</li><li>「支給済み」も一度押すと戻せません</li></ul>
+    <h3>ビンゴ内容編集</h3>
+    <ul><li>在籍女性用・新人女性用、それぞれ16マスの内容を編集できます</li></ul>
+    <button onclick="document.getElementById('helpOverlay').style.display='none'">閉じる</button>
+  </div>
+</div>
+
+<div id="progressOverlay"><div id="progressModal"></div></div>
+<div id="confirmOverlay"><div id="confirmModal"></div></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, collection, onSnapshot, query, orderBy, where, getDocs }
+  from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAjbCSxtMM5zsoaIZBX6dw9q2rebhCCHeg",
+  authDomain: "plus-bingo-8f37d.firebaseapp.com",
+  projectId: "plus-bingo-8f37d",
+  storageBucket: "plus-bingo-8f37d.firebasestorage.app",
+  messagingSenderId: "617575866890",
+  appId: "1:617575866890:web:db9eec940477abf238b5f3"
+};
+const fbApp = initializeApp(firebaseConfig);
+const db = getFirestore(fbApp);
+
+const ADMIN_PASS = "2580";
+const MASTER_PASS = "7410";
+let masterMode = false;
+
+window.toggleMasterMode = () => {
+  if (masterMode) {
+    masterMode = false;
+    document.getElementById("masterBar").classList.remove("on");
+    document.getElementById("masterBarText").textContent = "🔐 マスター管理者モード：OFF";
+    document.getElementById("masterBarBtn").textContent = "オンにする";
+    document.getElementById("pAmount").readOnly = true;
+    renderStatusTable();
+    renderMasterTable();
+    renderPayoutTable();
+    return;
+  }
+  const pass = prompt("マスター管理者パスコードを入力してください");
+  if (pass === MASTER_PASS) {
+    masterMode = true;
+    document.getElementById("masterBar").classList.add("on");
+    document.getElementById("masterBarText").textContent = "🔐 マスター管理者モード：ON(全機能編集可)";
+    document.getElementById("masterBarBtn").textContent = "オフにする";
+    document.getElementById("pAmount").readOnly = false;
+    renderStatusTable();
+    renderMasterTable();
+    renderPayoutTable();
+  } else if (pass !== null) {
+    alert("パスコードが違います");
+  }
+};
+const PRESET_STORES = ["梅田店","十三店","難波店","東大阪店"];
+const DEFAULT_ITEMS = ["出勤\n8日以上","出勤\n15日以上","通常日記\n10投稿","オキニトーク\n30人送信","姫予約\n3件","本指名\n5名","120分コース\n予約","動画日記\n5本","口コミ\n3件","求人口コミ\n1件投稿","性病検査","マイガール限定日記\n10本","イベント\n翌日出勤","YouTube\n出演","ショート動画\n出演","女性応援ポイント\n1000pt獲得"];
+
+function showConfirm(text, onYes){
+  const modal = document.getElementById("confirmModal");
+  modal.innerHTML = `<p>${text}</p><div class="btns"><button class="no" onclick="closeConfirm()">キャンセル</button><button class="yes" id="confirmYesBtn">はい</button></div>`;
+  document.getElementById("confirmOverlay").style.display = "flex";
+  document.getElementById("confirmYesBtn").onclick = () => { closeConfirm(); onYes(); };
+}
+window.closeConfirm = () => { document.getElementById("confirmOverlay").style.display = "none"; };
+
+window.tryEntry = () => {
+  const v = document.getElementById("entryInput").value;
+  if (v === ADMIN_PASS) {
+    document.getElementById("lockScreen").style.display = "none";
+    document.getElementById("app").style.display = "block";
+    initAll();
+  } else {
+    document.getElementById("lockError").textContent = "パスコードが違います";
+  }
+};
+
+document.querySelectorAll(".tab").forEach(t => {
+  t.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
+    document.querySelectorAll(".panel").forEach(x => x.classList.remove("active"));
+    t.classList.add("active");
+    document.getElementById("panel-" + t.dataset.tab).classList.add("active");
+  });
+});
+
+function fillStoreSelects(){
+  ["statusStoreFilter","mStore","mListStoreFilter","pStore"].forEach(id => {
+    const sel = document.getElementById(id);
+    PRESET_STORES.forEach(s => {
+      const opt = document.createElement("option");
+      opt.value = s; opt.textContent = s;
+      sel.appendChild(opt);
+    });
+  });
+}
+
+// ---------- 達成状況 ----------
+let statusRows = [];
+function watchStatus(){
+  onSnapshot(collection(db,"progress"), (snap) => {
+    statusRows = [];
+    snap.forEach(d => statusRows.push({id:d.id, ...d.data()}));
+    renderStatusTable();
+    renderMasterTable();
+    refreshPNameList();
+  });
+}
+function currentMonthKey(){ const d = new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); }
+
+function getLines(){
+  const L=[];
+  for(let r=0;r<4;r++)L.push([r*4,r*4+1,r*4+2,r*4+3]);
+  for(let c=0;c<4;c++)L.push([c,c+4,c+8,c+12]);
+  L.push([0,5,10,15]); L.push([3,6,9,12]);
+  return L;
+}
+
+function renderProgressModal(docId, store, name, monthKey, rec, readOnly){
+  const modal = document.getElementById("progressModal");
+  const cellsHtml = rec.cells.map((c,i) => {
+    let cls = "pCell";
+    let extra = "";
+    if (c.confirmed) { cls += " done"; if (c.confirmedBy) extra = `<span style="display:block;font-size:8px;">(${c.confirmedBy})</span>`; }
+    else if (c.done) { cls += " pending"; if (!readOnly) extra = `<span class="pBtn" onclick="confirmCell('${docId||''}','${store}','${name}','${monthKey}',${i})">確定</span>`; }
+    else { if (!readOnly) extra = `<span class="pBtn" style="background:#aaa;" onclick="adminAddCell('${docId||''}','${store}','${name}','${monthKey}',${i})">追加・確定</span>`; }
+    return `<div class="${cls}">${c.text}${extra}</div>`;
+  }).join("");
+  const hint = readOnly ? "" : `<div class="small" style="margin-bottom:6px;">「追加・確定」=本人のチェック無しで、スタッフが直接記録する操作です</div>`;
+  modal.innerHTML = `<h2>${name}</h2><div class="pSub">${store}・${monthKey}・確定済みライン${rec.lineCount||0}本</div>${hint}<div class="pGrid">${cellsHtml}</div><button onclick="document.getElementById('progressOverlay').style.display='none'">閉じる</button>`;
+}
+
+function getCompanionCategory(store, name){
+  const c = masterRows.find(m => m.store === store && m.name === name);
+  return c ? c.category : "在籍女性";
+}
+
+async function loadCellsTemplate(category){
+  const docId = category === "新人女性" ? "shinjin" : "zaiseki";
+  try{
+    const snap = await getDoc(doc(db,"bingoConfig",docId));
+    if (snap.exists() && Array.isArray(snap.data().items) && snap.data().items.length === 16) {
+      return snap.data().items.map(t => ({text:t, done:false, confirmed:false}));
+    }
+  }catch(e){}
+  return DEFAULT_ITEMS.map(t => ({text:t, done:false, confirmed:false}));
+}
+
+window.showProgressModal = async (store, name, monthKeyArg, readOnly) => {
+  const monthKey = monthKeyArg || currentMonthKey();
+  document.getElementById("progressModal").innerHTML = `<p class="small">読み込み中...</p>`;
+  document.getElementById("progressOverlay").style.display = "flex";
+  let rec = statusRows.find(p => p.store === store && p.name === name && p.monthKey === monthKey);
+  let docId = rec ? rec.id : null;
+  if (!rec) {
+    const cells = await loadCellsTemplate(getCompanionCategory(store, name));
+    rec = {store, name, monthKey, cells, lineCount:0, lines:[]};
+  }
+  renderProgressModal(docId, store, name, monthKey, rec, readOnly);
+};
+
+async function getOrCreateProgressDoc(docId, store, name, monthKey){
+  if (docId) {
+    const snap = await getDoc(doc(db,"progress",docId));
+    if (snap.exists()) return {id:docId, data:snap.data()};
+  }
+  const newId = `${store}_${name}_${monthKey}`;
+  const snap = await getDoc(doc(db,"progress",newId));
+  if (snap.exists()) return {id:newId, data:snap.data()};
+  const cells = await loadCellsTemplate(getCompanionCategory(store, name));
+  const data = {store, name, monthKey, cells, lineCount:0, lines:[], updatedAt:new Date()};
+  await setDoc(doc(db,"progress",newId), data);
+  return {id:newId, data};
+}
+
+window.adminAddCell = async (docId, store, name, monthKey, idx) => {
+  const confirmedBy = prompt("この項目を、本人のチェックなしで直接追加・確定します。担当者名を入力してください");
+  if (!confirmedBy) return;
+  const {id, data} = await getOrCreateProgressDoc(docId, store, name, monthKey);
+  const cells = data.cells;
+  if (cells[idx].confirmed) return;
+  cells[idx].done = true;
+  cells[idx].confirmed = true;
+  cells[idx].confirmedBy = confirmedBy;
+  cells[idx].confirmedAt = new Date().toISOString();
+  cells[idx].addedByAdmin = true;
+
+  const lines = data.lines || [];
+  const newLines = [];
+  getLines().forEach((line, li) => {
+    if (lines.includes(li)) return;
+    if (line.every(pos => cells[pos].confirmed)) newLines.push(li);
+  });
+  const updatedLines = [...lines, ...newLines];
+  const lineCount = Math.min(updatedLines.length, 10);
+
+  await setDoc(doc(db,"progress",id), {cells, lines:updatedLines, lineCount, lastAchievedAt: newLines.length ? new Date() : (data.lastAchievedAt || null)}, {merge:true});
+  renderProgressModal(id, store, name, monthKey, {...data, cells, lines:updatedLines, lineCount});
+};
+
+window.confirmCell = async (docId, store, name, monthKey, idx) => {
+  const confirmedBy = prompt("確定した担当者名を入力してください");
+  if (!confirmedBy) return;
+  const ref = doc(db, "progress", docId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return;
+  const data = snap.data();
+  const cells = data.cells;
+  if (!cells[idx].done || cells[idx].confirmed) return;
+  cells[idx].confirmed = true;
+  cells[idx].confirmedBy = confirmedBy;
+  cells[idx].confirmedAt = new Date().toISOString();
+
+  const lines = data.lines || [];
+  const newLines = [];
+  getLines().forEach((line, li) => {
+    if (lines.includes(li)) return;
+    if (line.every(pos => cells[pos].confirmed)) newLines.push(li);
+  });
+  const updatedLines = [...lines, ...newLines];
+  const lineCount = Math.min(updatedLines.length, 10);
+
+  await setDoc(ref, {cells, lines:updatedLines, lineCount, lastAchievedAt: newLines.length ? new Date() : (data.lastAchievedAt || null)}, {merge:true});
+  renderProgressModal(docId, store, name, monthKey, {...data, cells, lines:updatedLines, lineCount});
+};
+
+function tentativeLineCount(p){
+  if (!p.cells) return 0;
+  let count = 0;
+  getLines().forEach(line => { if (line.every(pos => p.cells[pos] && p.cells[pos].done)) count++; });
+  return Math.min(count, 10);
+}
+
+function renderStatusTable(){
+  const filter = document.getElementById("statusStoreFilter").value;
+  const rows = statusRows.filter(p => !filter || p.store === filter)
+    .filter(p => masterRows.some(m => m.store === p.store && m.name === p.name))
+    .sort((a,b) => (b.lineCount||0) - (a.lineCount||0));
+  const tbody = document.querySelector("#statusTable tbody");
+  tbody.innerHTML = rows.map(p => {
+    const tentative = tentativeLineCount(p);
+    return `
+    <tr>
+      <td>${p.store}</td><td>${p.name}</td><td>${p.monthKey}</td>
+      <td>${p.lineCount||0}本 <button class="secondary no-print" onclick="showProgressModal('${p.store}','${p.name}','${p.monthKey}',true)">確認</button></td>
+      <td>¥${tentative*500}</td>
+      <td><span class="tag ${p.lineCount ? 'done':'pending'}">¥${(p.lineCount||0)*500}</span></td>
+      <td class="no-print">${masterMode ? `<button class="danger" onclick="deleteProgress('${p.id}')">削除</button>` : ''}</td>
+    </tr>`;
+  }).join("");
+}
+window.deleteProgress = (id) => {
+  showConfirm("この達成状況の記録を削除しますか？この操作は取り消せません。", async () => {
+    await deleteDoc(doc(db,"progress",id));
+  });
+};
+document.getElementById("statusStoreFilter").addEventListener("change", renderStatusTable);
+
+// ---------- コンパニオン管理 ----------
+window.addCompanion = async () => {
+  const store = document.getElementById("mStore").value;
+  const name = document.getElementById("mName").value.trim();
+  const category = document.getElementById("mCategory").value;
+  if (!name) { alert("名前を入力してください"); return; }
+  const dup = masterRows.find(c => c.store === store && c.name === name);
+  if (dup) {
+    alert(`「${store}」には既に「${name}」が登録されています(${dup.active ? '在籍中' : '退店済み'})。\n同じ名前は重複登録できません。`);
+    return;
+  }
+  await addDoc(collection(db,"companions"), {store, name, category, active:true, createdAt:new Date()});
+  document.getElementById("mName").value = "";
+};
+
+let masterRows = [];
+let kanaFilter = "";
+let newOnlyFilter = false;
+
+const KANA_ROWS = {
+  "あ": "あいうえおアイウエオ",
+  "か": "かきくけこがぎぐげごカキクケコガギグゲゴ",
+  "さ": "さしすせそざじずぜぞサシスセソザジズゼゾ",
+  "た": "たちつてとだぢづでどタチツテトダヂヅデド",
+  "な": "なにぬねのナニヌネノ",
+  "は": "はひふへほばびぶべぼぱぴぷぺぽハヒフヘホバビブベボパピプペポ",
+  "ま": "まみむめもマミムメモ",
+  "や": "やゆよヤユヨ",
+  "ら": "らりるれろラリルレロ",
+  "わ": "わをんワヲン"
+};
+
+function matchesKana(name, row){
+  if (!row) return true;
+  const first = (name || "").charAt(0);
+  return KANA_ROWS[row].includes(first);
+}
+
+window.setKanaFilter = (row) => {
+  kanaFilter = row;
+  document.querySelectorAll("#kanaTabs .catTab").forEach(t => t.classList.toggle("active", t.dataset.kana === row));
+  renderMasterTable();
+};
+window.setNewOnlyFilter = (val) => {
+  newOnlyFilter = val;
+  document.querySelectorAll("[data-newonly]").forEach(t => t.classList.toggle("active", (t.dataset.newonly === "1") === val));
+  renderMasterTable();
+};
+document.getElementById("mSearchInput").addEventListener("input", renderMasterTable);
+
+function watchMaster(){
+  onSnapshot(collection(db,"companions"), (snap) => {
+    masterRows = [];
+    snap.forEach(d => masterRows.push({id:d.id, ...d.data()}));
+    renderMasterTable();
+    renderStatusTable();
+  });
+}
+function renderMasterTable(){
+  const filter = document.getElementById("mListStoreFilter").value;
+  const searchText = document.getElementById("mSearchInput").value.trim();
+  const rows = masterRows
+    .filter(c => !filter || c.store === filter)
+    .filter(c => matchesKana(c.name, kanaFilter))
+    .filter(c => !newOnlyFilter || c.category === "新人女性")
+    .filter(c => !searchText || c.name.includes(searchText))
+    .sort((a,b) => (a.active === b.active ? 0 : (a.active ? -1 : 1)) || a.name.localeCompare(b.name, "ja"));
+  const thisMonth = currentMonthKey();
+  const registeredCount = rows.filter(c => statusRows.some(p => p.store === c.store && p.name === c.name && p.monthKey === thisMonth)).length;
+  const notRegisteredCount = rows.length - registeredCount;
+  document.getElementById("masterCount").textContent =
+    "登録人数：" + rows.length + "人(今月の登録済み：" + registeredCount + "人／未登録：" + notRegisteredCount + "人)";
+  const tbody = document.querySelector("#masterTable tbody");
+  tbody.innerHTML = rows.map(c => {
+    const hasProgress = statusRows.some(p => p.store === c.store && p.name === c.name && p.monthKey === thisMonth);
+    return `
+    <tr style="${c.active ? '' : 'background:#eee;color:#999;'}">
+      <td>${c.store}</td><td>${c.name}</td><td><span class="tag ${c.category === '新人女性' ? 'shinjin' : 'zaiseki'}">${c.category}</span></td>
+      <td><span class="tag ${c.active ? 'done':'pending'}">${c.active ? '在籍':'退店'}</span></td>
+      <td><span class="tag ${hasProgress ? 'done':'pending'}">${hasProgress ? '登録済み':'未登録'}</span></td>
+      <td class="no-print">
+        <button class="secondary" ${hasProgress ? `onclick="showProgressModal('${c.store}','${c.name}')"` : 'disabled style="opacity:.4;"'}>進行状況</button>
+        <button class="secondary" onclick="toggleActive('${c.id}', ${!c.active})">${c.active ? '退店にする':'復帰'}</button>
+        <button class="secondary" onclick="editCategory('${c.id}','${c.name}','${c.category}')">区分編集</button>
+        ${masterMode ? `<button class="danger" onclick="deleteCompanion('${c.id}','${c.store}','${c.name}')">削除</button>` : ''}
+      </td>
+    </tr>`;
+  }).join("");
+}
+window.toggleActive = async (id, newVal) => {
+  await updateDoc(doc(db,"companions",id), {active:newVal});
+};
+window.promoteToRegular = (id, name) => {
+  showConfirm(`「${name}」を新人女性→在籍女性に切り替えますか？\nこの変更は一度きりで、あとから新人女性には戻せません。`, async () => {
+    await updateDoc(doc(db,"companions",id), {category:"在籍女性"});
+  });
+};
+window.editCategory = (id, name, currentCat) => {
+  const other = currentCat === "新人女性" ? "在籍女性" : "新人女性";
+  showConfirm(`「${name}」の区分を「${currentCat}」→「${other}」に変更しますか？`, async () => {
+    await updateDoc(doc(db,"companions",id), {category:other});
+  });
+};
+window.deleteCompanion = (id, store, name) => {
+  showConfirm(`「${name}」を完全に削除しますか？\n達成状況(過去の月の記録も含む)も一緒に削除されます。この操作は取り消せません。`, async () => {
+    await deleteDoc(doc(db,"companions",id));
+    const q = query(collection(db,"progress"), where("store","==",store), where("name","==",name));
+    const snap = await getDocs(q);
+    await Promise.all(snap.docs.map(d => deleteDoc(doc(db,"progress",d.id))));
+  });
+};
+document.getElementById("mListStoreFilter").addEventListener("change", renderMasterTable);
+
+// ---------- 支給履歴 ----------
+function eligiblePayoutNames(){
+  const store = document.getElementById("pStore").value;
+  const monthKey = document.getElementById("pMonth").value;
+  if (!monthKey) return [];
+  return statusRows.filter(p => p.store === store && p.monthKey === monthKey && (p.lineCount||0) > 0);
+}
+function refreshPNameList(){
+  const sel = document.getElementById("pName");
+  const eligible = eligiblePayoutNames();
+  sel.innerHTML = `<option value="">-- 名前を選択(ボーナス確定者のみ) --</option>` +
+    eligible.map(p => `<option value="${p.name}">${p.name}(¥${(p.lineCount||0)*500})</option>`).join("");
+  document.getElementById("pNameHint").textContent = document.getElementById("pMonth").value && eligible.length === 0
+    ? "この店舗・月でボーナスが確定している人はまだいません"
+    : "";
+}
+document.getElementById("pStore").addEventListener("change", refreshPNameList);
+document.getElementById("pMonth").addEventListener("change", refreshPNameList);
+document.getElementById("pName").addEventListener("change", () => {
+  const name = document.getElementById("pName").value.trim();
+  const rec = eligiblePayoutNames().find(p => p.name === name);
+  if (rec) document.getElementById("pAmount").value = (rec.lineCount||0) * 500;
+});
+
+window.addPayout = async () => {
+  const store = document.getElementById("pStore").value;
+  const name = document.getElementById("pName").value.trim();
+  const monthKey = document.getElementById("pMonth").value.trim();
+  const amount = Number(document.getElementById("pAmount").value) || 0;
+  const paymentDate = document.getElementById("pDate").value;
+  const staff = document.getElementById("pStaff").value.trim();
+  if (!name || !monthKey || !amount || !paymentDate) { alert("名前・対象月・支給額・支払日を入力してください"); return; }
+  if (!eligiblePayoutNames().some(p => p.name === name)) {
+    alert("この店舗・対象月でボーナスが確定している人の中から選んでください");
+    return;
+  }
+  showConfirm(`この内容で登録しますか？登録後は金額・支払日・担当者を編集できません。\n\n${store} / ${name} / ${monthKey} / ¥${amount} / ${paymentDate}`, async () => {
+    await addDoc(collection(db,"payouts"), {store, name, monthKey, amount, paymentDate, staff, status:"未支給", createdAt:new Date()});
+    document.getElementById("pName").value = "";
+    document.getElementById("pMonth").value = "";
+    document.getElementById("pAmount").value = "";
+    document.getElementById("pDate").value = "";
+    document.getElementById("pStaff").value = "";
+  });
+};
+
+let payoutRows = [];
+function watchPayouts(){
+  onSnapshot(collection(db,"payouts"), (snap) => {
+    payoutRows = [];
+    snap.forEach(d => payoutRows.push({id:d.id, ...d.data()}));
+    renderPayoutTable();
+  });
+}
+function renderPayoutTable(){
+  const tbody = document.querySelector("#payoutTable tbody");
+  tbody.innerHTML = payoutRows.map(p => `
+    <tr>
+      <td>${p.store}</td><td>${p.name}</td><td>${p.monthKey}</td><td>¥${p.amount}</td><td>${p.paymentDate||''}</td>
+      <td><span class="tag ${p.status==='支給済み'?'done':'pending'}">${p.status==='支給済み' ? '🔒 '+p.status : p.status}</span></td>
+      <td class="no-print">
+        ${p.status==='未支給' ? `<button class="secondary" onclick="markPaid('${p.id}')">支給済みにする</button>` : ''}
+        ${masterMode ? `<button class="danger" onclick="deletePayout('${p.id}')">削除</button>` : ''}
+      </td>
+    </tr>`).join("");
+}
+window.markPaid = (id) => {
+  showConfirm("「支給済み」にしますか？一度支給済みにすると、未支給には戻せません。", async () => {
+    await updateDoc(doc(db,"payouts",id), {status:"支給済み", paidAt:new Date()});
+  });
+};
+window.deletePayout = (id) => {
+  showConfirm("この支給履歴を削除しますか？この操作は取り消せません。", async () => {
+    await deleteDoc(doc(db,"payouts",id));
+  });
+};
+
+// ---------- ビンゴ内容編集 ----------
+let bingoEditCat = "在籍女性";
+function bingoCatDocId(cat){ return cat === "新人女性" ? "shinjin" : "zaiseki"; }
+
+window.switchBingoCat = (cat) => {
+  bingoEditCat = cat;
+  document.querySelectorAll(".catTab").forEach(t => t.classList.toggle("active", t.dataset.cat === cat));
+  loadBingoEdit();
+};
+
+async function loadBingoEdit(){
+  const snap = await getDoc(doc(db,"bingoConfig", bingoCatDocId(bingoEditCat)));
+  const items = (snap.exists() && snap.data().items) ? snap.data().items : DEFAULT_ITEMS;
+  const wrap = document.getElementById("bingoEditGrid");
+  wrap.innerHTML = items.map((t,i) => `<label>${i+1}マス目</label><textarea rows="2" data-idx="${i}">${t}</textarea>`).join("");
+}
+window.saveBingoConfig = async () => {
+  const items = Array.from(document.querySelectorAll("#bingoEditGrid textarea")).map(t => t.value);
+  await setDoc(doc(db,"bingoConfig", bingoCatDocId(bingoEditCat)), {items, updatedAt:new Date()});
+  document.getElementById("bingoSaveMsg").textContent = "保存しました！(" + bingoEditCat + "用) スタッフ用アプリに反映されます。";
+  setTimeout(() => { document.getElementById("bingoSaveMsg").textContent = ""; }, 3000);
+};
+
+function initAll(){
+  fillStoreSelects();
+  watchStatus();
+
+  watchMaster();
+  watchPayouts();
+  loadBingoEdit();
+}
+</script>
+</body>
+</html>
