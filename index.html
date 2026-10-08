@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plus+ ビンゴ</title>
+<style>
+:root{--bg:#fff5f9;--card:#ffffff;--text:#5a2e42;--sub:#a15a78;--accent:#ff6f9f;--line:#ffd6e6;}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif;background:var(--bg);color:var(--text);}
+#lockScreen{position:fixed;inset:0;background:linear-gradient(160deg,#2a1420,#4a1f33);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;color:#fff;}
+#lockScreen h1{font-size:32px;letter-spacing:2px;margin-bottom:24px;font-weight:300;}
+#lockScreen input{font-size:24px;letter-spacing:8px;text-align:center;width:180px;padding:10px;border-radius:12px;border:none;margin-bottom:16px;}
+#lockScreen button{padding:10px 24px;border-radius:20px;border:none;background:var(--accent);color:#fff;font-size:16px;}
+#lockError{color:#ffb3c6;font-size:13px;height:18px;}
+#app{display:none;max-width:480px;margin:0 auto;padding:16px;}
+.card{background:var(--card);border-radius:16px;padding:16px;margin-bottom:14px;box-shadow:0 2px 10px rgba(0,0,0,.05);}
+select,input[type=text],input[type=month]{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);font-size:16px;background:#fff;color:var(--text);}
+input[disabled]{background:#f6eef2;color:var(--sub);}
+label{font-size:13px;color:var(--sub);display:block;margin-bottom:4px;}
+.row{display:flex;gap:8px;align-items:center;}
+.row>*:first-child{flex:1;}
+.lockBtn{flex:0 0 auto;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:#fff;font-size:16px;}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px;}
+.cell{min-height:84px;background:#fff;border:2px solid var(--line);border-radius:10px;display:flex;align-items:center;justify-content:center;text-align:center;font-size:13px;font-weight:700;line-height:1.3;word-break:break-all;white-space:pre-line;padding:5px 3px;cursor:pointer;transition:.15s;}
+.cell.done{background:var(--accent);color:#fff;border-color:var(--accent);}
+.cell.pending{background:#fff3e0;border-color:#ffb74d;color:#a5561a;border-style:dashed;}
+#overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:500;}
+#modal{background:#fff;border-radius:16px;padding:20px;width:80%;max-width:320px;text-align:center;}
+#modal p{margin:0 0 16px;white-space:pre-line;}
+#modal .btns{display:flex;gap:10px;}
+#modal button{flex:1;padding:10px;border-radius:10px;border:none;font-size:15px;}
+#modal .yes{background:var(--accent);color:#fff;}
+#modal .no{background:#eee;}
+#confetti{position:fixed;inset:0;pointer-events:none;z-index:600;}
+#bingoMsg{position:fixed;top:40%;left:50%;transform:translate(-50%,-50%);background:var(--accent);color:#fff;padding:16px 28px;border-radius:20px;font-size:20px;font-weight:bold;display:none;z-index:700;box-shadow:0 4px 20px rgba(0,0,0,.3);}
+.hint{font-size:12px;color:var(--sub);text-align:center;margin-top:8px;}
+#helpBtn{position:fixed;top:14px;right:14px;width:32px;height:32px;border-radius:50%;background:var(--accent);color:#fff;border:none;font-size:16px;z-index:400;box-shadow:0 2px 8px rgba(0,0,0,.2);}
+#helpOverlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:800;padding:20px;}
+#helpModal{background:#fff;border-radius:16px;padding:20px;width:100%;max-width:360px;max-height:80vh;overflow-y:auto;}
+#helpModal h2{font-size:17px;margin:0 0 10px;}
+#helpModal h3{font-size:14px;margin:14px 0 4px;color:var(--accent);}
+#helpModal ol,#helpModal ul{margin:0 0 6px;padding-left:20px;font-size:13px;line-height:1.6;}
+#helpModal button{margin-top:14px;width:100%;padding:10px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-size:15px;}
+</style>
+</head>
+<body>
+
+<div id="lockScreen">
+  <h1>Plus+</h1>
+  <input type="password" id="entryInput" inputmode="numeric" maxlength="8" placeholder="パスコード">
+  <div id="lockError"></div>
+  <button onclick="tryEntry()">開く</button>
+</div>
+
+<div id="app">
+  <div class="card">
+    <label>店舗</label>
+    <select id="storeSelect"></select>
+  </div>
+  <div class="card">
+    <label>お名前</label>
+    <div class="row">
+      <input type="text" id="nameInput" list="nameList" placeholder="名前を入力または選択" autocomplete="off">
+      <button class="lockBtn" id="nameLockBtn" style="display:none;" onclick="onLockBtnTap()">🔐</button>
+      <button class="lockBtn" id="deleteRecordBtn" style="display:none;background:#e05070;color:#fff;border-color:#e05070;" onclick="deleteCurrentRecord()">🗑</button>
+    </div>
+    <datalist id="nameList"></datalist>
+    <div class="hint" id="nameHint"></div>
+    <div class="hint">※名前はひらがな登録</div>
+  </div>
+  <div class="card">
+    <div class="row" style="margin-bottom:6px;">
+      <button class="lockBtn" id="prevMonthBtn" style="flex:1;" onclick="changeMonthView(-1)">← 前月</button>
+      <button class="lockBtn" id="thisMonthBtn" style="flex:1;visibility:hidden;" onclick="goToThisMonth()">今月</button>
+      <button class="lockBtn" id="nextMonthBtn" style="flex:1;visibility:hidden;" onclick="changeMonthView(1)">次月 →</button>
+    </div>
+    <div id="monthLabel" style="font-size:14px;color:var(--sub);text-align:center;"></div>
+    <div class="grid" id="grid"></div>
+  </div>
+</div>
+
+<button id="helpBtn" onclick="document.getElementById('helpOverlay').style.display='flex'">？</button>
+<div id="helpOverlay">
+  <div id="helpModal">
+    <h2>ビンゴカードの使い方</h2>
+    <h3>① はじめに</h3>
+    <ol>
+      <li>自分の店舗を選ぶ</li>
+      <li>自分のお名前を入力または選んで決定(ひらがなで登録されています)</li>
+      <li>名前を決めると、自動で今月のビンゴカードが出てきます(月をまたぐと自動で切り替わります)</li>
+      <li>「← 前月」ボタンで過去の月のカードを見ることもできます(閲覧のみで、チェックは入れられません)</li>
+      <li>達成した項目のマスをタップしてチェックを入れる</li>
+    </ol>
+    <h3>② チェックを入れたあと</h3>
+    <ul>
+      <li>チェックすると、まずは「確認待ち」の状態になります</li>
+      <li>お店のスタッフが確認して確定すると、正式にカウントされます</li>
+      <li>確定されてビンゴ(タテ・ヨコ・ナナメ)が揃うと、お祝い演出が出ます🎉</li>
+    </ul>
+    <h3>③ 名前について</h3>
+    <ul>
+      <li>一度名前を選ぶと、その端末では固定されます(間違えて他の人の名前を選んでしまうのを防ぐためです)</li>
+      <li>名前を間違えてしまった場合は、お店のスタッフに伝えてください</li>
+    </ul>
+    <h3>④ 困ったとき</h3>
+    <ul>
+      <li>自分の名前が候補に出てこない場合は、お店のスタッフにまだ登録されていない可能性があるので伝えてください</li>
+    </ul>
+    <button onclick="document.getElementById('helpOverlay').style.display='none'">閉じる</button>
+  </div>
+</div>
+
+<div id="overlay"><div id="modal"></div></div>
+<div id="bingoMsg">🎉 ビンゴ達成！</div>
+<canvas id="confetti"></canvas>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, deleteDoc, onSnapshot, collection, query, where, getDocs }
+  from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAjbCSxtMM5zsoaIZBX6dw9q2rebhCCHeg",
+  authDomain: "plus-bingo-8f37d.firebaseapp.com",
+  projectId: "plus-bingo-8f37d",
+  storageBucket: "plus-bingo-8f37d.firebasestorage.app",
+  messagingSenderId: "617575866890",
+  appId: "1:617575866890:web:db9eec940477abf238b5f3"
+};
+const fbApp = initializeApp(firebaseConfig);
+const db = getFirestore(fbApp);
+
+const ENTRY_PASS = "1194";
+const MASTER_PASS = "7410";
+const PRESET_STORES = ["梅田店","十三店","難波店","東大阪店"];
+const APP_START_MONTH = "2026-10";
+const DEFAULT_ITEMS = ["出勤\n8日以上","出勤\n15日以上","通常日記\n10投稿","オキニトーク\n30人送信","姫予約\n3件","本指名\n5名","120分コース\n予約","動画日記\n5本","口コミ\n3件","求人口コミ\n1件投稿","性病検査","マイガール限定日記\n10本","イベント\n翌日出勤","YouTube\n出演","ショート動画\n出演","女性応援ポイント\n1000pt獲得"];
+
+function currentMonthKey(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");}
+function monthLabelText(k){const [y,m]=k.split("-");return y+"年"+parseInt(m,10)+"月";}
+
+let bingoItems = DEFAULT_ITEMS;
+let currentStore = PRESET_STORES[0];
+let currentName = "";
+let currentDocId = null;
+let cells = [];
+let unsub = null;
+let companionList = []; // {name, category}
+
+function showModal(text, onYes){
+  const modal = document.getElementById("modal");
+  modal.innerHTML = `<p>${text}</p><div class="btns"><button class="no" onclick="closeModal()">キャンセル</button><button class="yes" id="yesBtn">はい</button></div>`;
+  document.getElementById("overlay").style.display = "flex";
+  document.getElementById("yesBtn").onclick = () => { closeModal(); onYes(); };
+}
+window.closeModal = () => { document.getElementById("overlay").style.display = "none"; };
+
+window.tryEntry = () => {
+  const v = document.getElementById("entryInput").value;
+  if (v === ENTRY_PASS) {
+    document.getElementById("lockScreen").style.display = "none";
+    document.getElementById("app").style.display = "block";
+  } else {
+    document.getElementById("lockError").textContent = "パスコードが違います";
+  }
+};
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    document.getElementById("app").style.display = "none";
+    document.getElementById("lockScreen").style.display = "flex";
+    document.getElementById("entryInput").value = "";
+  }
+});
+window.addEventListener("pageshow", () => {
+  document.getElementById("app").style.display = "none";
+  document.getElementById("lockScreen").style.display = "flex";
+});
+
+async function loadBingoConfig(category){
+  const docId = category === "新人女性" ? "shinjin" : "zaiseki";
+  try{
+    const snap = await getDoc(doc(db,"bingoConfig",docId));
+    if (snap.exists() && Array.isArray(snap.data().items) && snap.data().items.length === 16) {
+      bingoItems = snap.data().items;
+      return;
+    }
+  }catch(e){}
+  bingoItems = DEFAULT_ITEMS;
+}
+
+function lockKey(store){ return "plus-bingo-lockedname-" + store; }
+
+function renderDatalist(){
+  const list = document.getElementById("nameList");
+  list.innerHTML = "";
+  companionList.forEach(c => {
+    const opt = document.createElement("option");
+    opt.value = c.name;
+    list.appendChild(opt);
+  });
+}
+
+async function loadNames(store){
+  const input = document.getElementById("nameInput");
+  companionList = [];
+  const q = query(collection(db,"companions"), where("store","==",store), where("active","==",true));
+  const snap = await getDocs(q);
+  if (snap.empty) {
+    document.getElementById("nameHint").textContent = "この店舗のコンパニオンが未登録です。管理画面で登録してください。";
+  } else {
+    document.getElementById("nameHint").textContent = "";
+    snap.forEach(d => {
+      const c = d.data();
+      companionList.push({name:c.name, category:c.category});
+    });
+  }
+  renderDatalist();
+
+  const locked = localStorage.getItem(lockKey(store));
+  if (locked) {
+    input.value = locked;
+    refreshNameLockUI(true);
+    trySelectName(locked);
+  } else {
+    input.value = "";
+    refreshNameLockUI(false);
+    renderEmptyGrid();
+  }
+}
+
+function refreshNameLockUI(locked){
+  const input = document.getElementById("nameInput");
+  const lockBtn = document.getElementById("nameLockBtn");
+  const delBtn = document.getElementById("deleteRecordBtn");
+  input.disabled = locked;
+  lockBtn.style.display = "inline-block";
+  lockBtn.textContent = locked ? "🔓" : "🔒";
+  delBtn.style.display = (!locked && currentDocId) ? "inline-block" : "none";
+}
+
+window.onLockBtnTap = () => {
+  const input = document.getElementById("nameInput");
+  if (input.disabled) {
+    const pass = prompt("マスター管理者パスコードを入力してください");
+    if (pass === MASTER_PASS) {
+      // 解除:画面上のデータはそのまま、入力だけ再度できるようにする
+      refreshNameLockUI(false);
+    } else if (pass !== null) {
+      alert("パスコードが違います");
+    }
+  } else {
+    // 再ロック:今の名前のまま固定し直す
+    const name = input.value.trim();
+    if (!companionList.find(c => c.name === name)) { alert("登録されている名前を選択してください"); return; }
+    localStorage.setItem(lockKey(currentStore), name);
+    refreshNameLockUI(true);
+  }
+};
+
+window.deleteCurrentRecord = () => {
+  if (!currentDocId) { alert("削除する記録がありません"); return; }
+  showModal("この記録を完全に削除しますか？\nチェック状況・達成ライン数がすべて消えます。", async () => {
+    await deleteDoc(doc(db, "progress", currentDocId));
+    localStorage.removeItem(lockKey(currentStore));
+    currentName = "";
+    currentDocId = null;
+    stopWatch();
+    renderEmptyGrid();
+    document.getElementById("nameInput").value = "";
+    refreshNameLockUI(false);
+  });
+};
+
+function buildStoreSelect(){
+  const sel = document.getElementById("storeSelect");
+  PRESET_STORES.forEach(s => {
+    const opt = document.createElement("option");
+    opt.value = s; opt.textContent = s;
+    sel.appendChild(opt);
+  });
+  sel.value = currentStore;
+  sel.addEventListener("change", () => {
+    currentStore = sel.value;
+    stopWatch();
+    loadNames(currentStore);
+  });
+}
+
+function renderEmptyGrid(){
+  document.getElementById("monthLabel").textContent = "";
+  document.getElementById("grid").innerHTML = "";
+}
+
+function stopWatch(){ if (unsub) { unsub(); unsub = null; } }
+
+async function trySelectName(name){
+  const match = companionList.find(c => c.name === name);
+  if (!match) { renderEmptyGrid(); return; }
+  currentName = name;
+  if (!localStorage.getItem(lockKey(currentStore))) {
+    localStorage.setItem(lockKey(currentStore), name);
+  }
+  await loadBingoConfig(match.category);
+  await openProgress();
+  refreshNameLockUI(!!localStorage.getItem(lockKey(currentStore)));
+}
+
+let openedMonthKey = null;
+let viewOffset = 0;
+let readOnly = false;
+
+function shiftMonthKey(base, offset){
+  let [y,m] = base.split("-").map(Number);
+  m += offset;
+  while (m < 1) { m += 12; y--; }
+  while (m > 12) { m -= 12; y++; }
+  return y + "-" + String(m).padStart(2,"0");
+}
+
+window.changeMonthView = (delta) => {
+  if (!currentName) return;
+  if (viewOffset + delta > 0) return; // 未来の月は見れない
+  const targetKey = shiftMonthKey(currentMonthKey(), viewOffset + delta);
+  if (targetKey < APP_START_MONTH) return; // 運用開始月より前は見れない
+  openProgress(viewOffset + delta);
+};
+
+window.goToThisMonth = () => {
+  if (!currentName) return;
+  openProgress(0);
+};
+
+async function openProgress(offset){
+  offset = offset || 0;
+  stopWatch();
+  viewOffset = offset;
+  readOnly = offset !== 0;
+  const monthKey = shiftMonthKey(currentMonthKey(), offset);
+  openedMonthKey = monthKey;
+  currentDocId = `${currentStore}_${currentName}_${monthKey}`;
+  document.getElementById("monthLabel").textContent = monthLabelText(monthKey) + (readOnly ? "(閲覧のみ)" : "");
+  document.getElementById("nextMonthBtn").style.visibility = offset < 0 ? "visible" : "hidden";
+  document.getElementById("thisMonthBtn").style.visibility = offset < 0 ? "visible" : "hidden";
+  document.getElementById("prevMonthBtn").style.visibility = shiftMonthKey(monthKey, -1) < APP_START_MONTH ? "hidden" : "visible";
+
+  const ref = doc(db, "progress", currentDocId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) {
+    if (readOnly) {
+      cells = bingoItems.map(t => ({text:t, done:false, confirmed:false}));
+      renderGrid();
+      return;
+    }
+    cells = bingoItems.map(t => ({text:t, done:false, confirmed:false}));
+    await setDoc(ref, {store:currentStore, name:currentName, monthKey, cells, lineCount:0, lines:[], updatedAt:new Date()});
+  }
+  let prevLineCount = null;
+  unsub = onSnapshot(ref, (s) => {
+    if (!s.exists()) return;
+    const data = s.data();
+    cells = data.cells;
+    renderGrid();
+    const newCount = data.lineCount || 0;
+    if (prevLineCount !== null && newCount > prevLineCount && !readOnly) celebrate();
+    prevLineCount = newCount;
+  });
+}
+
+document.getElementById("nameInput").addEventListener("change", (e) => trySelectName(e.target.value));
+
+// 日付をまたいで月が変わったら、今月表示中の場合だけ自動で新しい月に切り替える
+setInterval(() => {
+  if (currentName && viewOffset === 0 && openedMonthKey && currentMonthKey() !== openedMonthKey) {
+    openProgress(0);
+  }
+}, 60000);
+
+function renderGrid(){
+  const grid = document.getElementById("grid");
+  grid.innerHTML = "";
+  cells.forEach((c,i) => {
+    const div = document.createElement("div");
+    let cls = "cell";
+    if (c.confirmed) cls += " done";
+    else if (c.done) cls += " pending";
+    div.className = cls;
+    div.textContent = c.text + (c.done && !c.confirmed ? "\n(確認待ち)" : "");
+    if (!c.confirmed && !readOnly) div.onclick = () => onCellTap(i);
+    grid.appendChild(div);
+  });
+}
+
+async function onCellTap(i){
+  if (!currentDocId) return;
+  if (cells[i].done) {
+    showModal("このマスのチェックを外しますか？", async () => { await setCell(i, false); });
+  } else {
+    await setCell(i, true);
+  }
+}
+
+async function setCell(i, done){
+  cells[i].done = done;
+  const ref = doc(db, "progress", currentDocId);
+  await setDoc(ref, {cells}, {merge:true});
+}
+
+function celebrate(){
+  const msg = document.getElementById("bingoMsg");
+  msg.style.display = "block";
+  fireConfetti();
+  setTimeout(() => { msg.style.display = "none"; }, 2200);
+}
+
+function fireConfetti(){
+  const canvas = document.getElementById("confetti");
+  canvas.width = innerWidth; canvas.height = innerHeight;
+  const ctx = canvas.getContext("2d");
+  const colors = ["#ff6f9f","#ffd6e6","#ffb3c6","#fff5f9","#ff9fc2"];
+  const parts = Array.from({length:80}, () => ({
+    x: Math.random()*canvas.width, y: -20, r: 4+Math.random()*4,
+    vy: 2+Math.random()*3, vx: -2+Math.random()*4, c: colors[Math.floor(Math.random()*colors.length)]
+  }));
+  let frame = 0;
+  function tick(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    parts.forEach(p => {
+      p.x += p.vx; p.y += p.vy;
+      ctx.fillStyle = p.c;
+      ctx.fillRect(p.x, p.y, p.r, p.r);
+    });
+    frame++;
+    if (frame < 90) requestAnimationFrame(tick);
+    else ctx.clearRect(0,0,canvas.width,canvas.height);
+  }
+  tick();
+}
+
+(async function init(){
+  buildStoreSelect();
+  await loadNames(currentStore);
+})();
+</script>
+</body>
+</html>
